@@ -1,5 +1,5 @@
 # OpenShift Logging: Spring Boot Application multiline logs handler and custom log fields parser
-There is a long discussion about the missing support of OpenShift Logging (Elasticsearch-Fluentd-Kibana) of multiline logs. This is my appoach for handling multiline application logs , along with applying custom field parsing for Springboot custom application logs as a reference of how to handle you custom application logs in OpenShift Container Platform(tested with version 3.9 and 3.10).
+There is a [long discussion about the missing support of OpenShift Logging](https://itnext.io/multiline-logs-in-openshift-efk-stack-7a7bda4ed055) (Elasticsearch-Fluentd-Kibana) of multiline logs. This is my appoach for handling multiline application logs , along with applying custom field parsing for Springboot custom application logs as a reference of how to handle you custom application logs in OpenShift Container Platform(tested with version 3.9 and 3.10).
 This document is also [published at Medium](https://medium.com/@sbourazanis/openshift-logging-spring-boot-application-multiline-logs-handler-and-custom-log-fields-parser-e4e1a64cdc01).
 
 ## Installing Custom Multiline Parsing
