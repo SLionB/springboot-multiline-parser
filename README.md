@@ -34,11 +34,11 @@ $ oc exec logging-fluentd-8j6c9 -- bash -c 'rm -r /extract;'
 ```
 $ cp -R /work/fluentd/ /work/fluentd_backup
 ```
-7. Download Fluentd Concat Filter plugin to concatenate multiline logs separated in multiple events and copy the ruby file at the plugin folder. Please check your fluentd version to download the correct plugin version:
+7. Download [Fluentd Concat Filter plugin](https://github.com/fluent-plugins-nursery/fluent-plugin-concat) to concatenate multiline logs separated in multiple events and copy the ruby file at the plugin folder. Please check your fluentd version to download the correct plugin version:
 ```
 $ wget -O /work/fluentd/plugin/filter_concat.rb https://raw.githubusercontent.com/fluent-plugins-nursery/fluent-plugin-concat/v1.0.0/lib/fluent/plugin/filter_concat.rb
 ```
-8. Download Fluentd SpringBoot Custom Multiline Parser zip file and unzip Fluentd configuration files at the configuration folder:
+8. Download [Fluentd SpringBoot Custom Multiline Parser](https://github.com/SLionB/springboot-multiline-parser) zip file and unzip Fluentd configuration files at the configuration folder:
 ```
 $ wget -O springboot-multiline-parser.zip https://github.com/SLionB/springboot-multiline-parser/archive/master.zip
 $ unzip -oj springboot-multiline-parser.zip -d /work/fluentd/configs.d/user/
@@ -66,7 +66,7 @@ $ oc create configmap logging-fluentd --from-file= /work/fluentd/configs.d/user/
 $ oc volume ds/logging-fluentd --add --name=plugin --type=configmap --configmap-name=logging-fluentd-plugin --mount-path= /etc/fluent/plugin  --default-mode=0644
 ```
 13. DaemonSet update will trigger a new Fluentd pods deployment with the new configuration. If everything has been deployed successfully the Fluentd pods will start without errors.
-14. If you want to test this, in a non production environment, containarize in OpenShift this sample Perl application (noise) that generates sample Spring Boot custom application logs. 
+14. If you want to test this, in a non production environment, containarize in OpenShift this [sample Perl application (noise)](https://github.com/SLionB/noise) that generates sample Spring Boot custom application logs. 
 14. Log in to Kibana and verify the presense of the added custom Spring Boot application's fields and that the multiline logs are handled successfully.
 ## Temporary enable/disable Custom Multiline Parsing
 After installation you can easily go back and forth between the original logging configuration and the new one by just following the following trivial process:
