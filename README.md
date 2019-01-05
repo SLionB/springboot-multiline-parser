@@ -4,13 +4,13 @@ There is a long discussion about the missing support of OpenShift Logging (Elast
 https://medium.com/@sbourazanis/openshift-logging-spring-boot-application-multiline-logs-handler-and-custom-log-fields-parser-e4e1a64cdc01
 ## Installing Custom Multiline Parsing
 1. On an OpenShift master node login to OpenShift cluster using the CLI:
-``
+```
 $ oc login <admin> <password>
-``
+```
 2. Change to the logging project. Replace with your openshift logging project name if necessary:
-``
+```
 $ oc project openshift-logging
-``
+```
 3. Find the pods in your OpenShift cluster that run Fluentd agents:
 ```
 $ oc get pods -l component=fluentd
