@@ -4,6 +4,15 @@ This document is also [published at Medium](https://medium.com/@sbourazanis/open
 ## Introduction
 OpenShift Fluentd configuration is exposed in logging-fluentd ConfigMap in openshift-logging project.The ConfigMap is populated with data from files mounted from the Fluentd pods image directory /etc/fluent/configs.d/user/. The main Fluentd configuration file in a Fluentd pod /etc/fluent/fluent.conf  is a symbolic link to /etc/fluent/configs.d/user/fluentd.conf. The idea is to add new Fluentd configuration file(s) as new ConfigMap entries and modify slightly the main fluentd.conf to apply the new pipeline. Furthermore to handle multiline logs, an additional Fluentd plugin is needed which is not part of the Fluent image, so the idea is to create a new ConfigMap for the plugins including not only the existing ones but also the additional plugin needed.
 
+## How it works
+Default OCP Fluentd pipeline reads container logs from journald source using Fluentd INGRESS labeled configuration and forwards them to OUTPUT labeled configuration which is the Elasticsearch backend like that: source->INGRESS->OUTPUT
+To support multiline handling and custom field parsing, the main pipeline in fluent.conf has to be modified as follows:
+source->INGRESS->MULTILINE->PARSER->OUTPUT.
+
+1. The  new configuration file filter-post-springboot.conf in the INGRESS block  replaces the default filter-post-*.conf and forwards the logs to MULTILINE block instead of the OUTPUT block. Furtnermore it creates a docker_container_id field as the default nested one docker.container_id cannot be used by concat Fluentd filter.
+2. The file out-multiline-springboot.conf in the MULTILINE block uses the concat filter to concatenate multiline logs based on a custom regular expression (you can use your own) in the contents of the message field grouped by the calculated docker_container_id field. Concatenated logs are forwarded to PARSER block for field parsing.
+3. The file out-parser-springboot.conf in the PARSER block users a custom regular expression (you can use your own) in the parser filter to parse custom application fields and forwards them to OUTPUT block.
+
 ## Installing Custom Multiline Parsing
 1. On an OpenShift master node login to OpenShift cluster using the CLI:
 ```
