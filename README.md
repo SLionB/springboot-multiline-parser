@@ -1,8 +1,26 @@
 # OpenShift Logging: Spring Boot Application multiline logs handler and custom log fields parser
-There is a [long discussion about the missing support of OpenShift Logging](https://itnext.io/multiline-logs-in-openshift-efk-stack-7a7bda4ed055) (Elasticsearch-Fluentd-Kibana) of multiline logs. This is my appoach for handling multiline application logs , along with applying custom field parsing for Springboot custom application logs as a reference of how to handle you custom application logs in OpenShift Container Platform(tested with version 3.9 and 3.10).
+There is a [long discussion about the missing support of OpenShift Logging](https://itnext.io/multiline-logs-in-openshift-efk-stack-7a7bda4ed055) (Elasticsearch-Fluentd-Kibana) of multiline logs. This is my appoach for handling multiline application logs , along with applying custom field parsing for Spring Boot custom application logs as a reference of how to handle you custom application logs in OpenShift Container Platform(tested with version 3.9 and 3.10).
 This document is also [published at Medium](https://medium.com/@sbourazanis/openshift-logging-spring-boot-application-multiline-logs-handler-and-custom-log-fields-parser-e4e1a64cdc01).
 ## Introduction
 OpenShift Fluentd configuration is exposed in logging-fluentd ConfigMap in openshift-logging project.The ConfigMap is populated with data from files mounted from the Fluentd pods image directory /etc/fluent/configs.d/user/. The main Fluentd configuration file in a Fluentd pod /etc/fluent/fluent.conf  is a symbolic link to /etc/fluent/configs.d/user/fluentd.conf. The idea is to add new Fluentd configuration file(s) as new ConfigMap entries and modify slightly the main fluentd.conf to apply the new pipeline. Furthermore to handle multiline logs, an additional Fluentd plugin is needed which is not part of the Fluent image, so the idea is to create a new ConfigMap for the plugins including not only the existing ones but also the additional plugin needed.
+
+## Spring Boot logs
+```
+Spring Boot logs are Logback formatted as the following samples:
+service1.log:2016-02-26 11:15:47.561  INFO [service1,2485ec27856c56f4,2485ec27856c56f4,true] 68058 --- [nio-8081-exec-1] i.s.c.sleuth.docs.service1.Application   : Hello from service1. Calling service2
+service2.log:2016-02-26 11:15:47.710  INFO [service2,2485ec27856c56f4,9aa10ee6fbde75fa,true] 68059 --- [nio-8082-exec-1] i.s.c.sleuth.docs.service2.Application   : Hello from service2. Calling service3 and then service4
+service3.log:2016-02-26 11:15:47.895  INFO [service3,2485ec27856c56f4,1210be13194bfe5,true] 68060 --- [nio-8083-exec-1] i.s.c.sleuth.docs.service3.Application   : Hello from service3
+service2.log:2016-02-26 11:15:47.924  INFO [service2,2485ec27856c56f4,9aa10ee6fbde75fa,true] 68059 --- [nio-8082-exec-1] i.s.c.sleuth.docs.service2.Application   : Got response from service3 [Hello from service3]
+service4.log:2016-02-26 11:15:48.134  INFO [service4,2485ec27856c56f4,1b1845262ffba49d,true] 68061 --- [nio-8084-exec-1] i.s.c.sleuth.docs.service4.Application   : Hello from service4
+service2.log:2016-02-26 11:15:48.156  INFO [service2,2485ec27856c56f4,9aa10ee6fbde75fa,true] 68059 --- [nio-8082-exec-1] i.s.c.sleuth.docs.service2.Application   : Got response from service4 [Hello from service4]
+service1.log:2016-02-26 11:15:48.182  INFO [service1,2485ec27856c56f4,2485ec27856c56f4,true] 68058 --- [nio-8081-exec-1] i.s.c.sleuth.docs.service1.Application   : Got response from service2 [Hello from service2, response from service3 [Hello from service3] and from service4 [Hello from service4]]
+```
+1.	Fields to be parsed are: thread, span, trace, service, severity, class
+2.	Fluentd configuration should handle multi-line log entries (i.e. exceptions stack trace)
+3.	Log Events should be sent to the same elastic search index
+
+A [custom Perl application](https://github.com/SLionB/noise) has been created to generate sample logs of this type.
+
 
 ## How it works
 Default OCP Fluentd pipeline reads container logs from journald source using Fluentd INGRESS labeled configuration and forwards them to OUTPUT labeled configuration which is the Elasticsearch backend like that: source->INGRESS->OUTPUT
