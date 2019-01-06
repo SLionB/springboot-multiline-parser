@@ -1,12 +1,12 @@
-# OpenShift Logging: Spring Boot Application multiline logs handler and custom log fields parser
-There is a [long discussion about the missing support of OpenShift Logging](https://itnext.io/multiline-logs-in-openshift-efk-stack-7a7bda4ed055) (Elasticsearch-Fluentd-Kibana) of multiline logs. This is my appoach for handling multiline application logs , along with applying custom field parsing for Spring Boot custom application logs as a reference of how to handle you custom application logs in OpenShift Container Platform(tested with version 3.9 and 3.10).
+# OpenShift Logging: Spring Boot Application multiline logs handler and Logback parser
+There is a [long discussion about the missing support of OpenShift Logging](https://itnext.io/multiline-logs-in-openshift-efk-stack-7a7bda4ed055) (Elasticsearch-Fluentd-Kibana) of multiline logs. This is my appoach for handling multiline application logs , along with applying Logback parsing for Spring Boot custom application logs as a reference of how to handle you custom application logs in OpenShift Container Platform(tested with version 3.9 and 3.10 - works also with 3.6 and 3.7 with a minor change ).
 This document is also [published at Medium](https://medium.com/@sbourazanis/openshift-logging-spring-boot-application-multiline-logs-handler-and-custom-log-fields-parser-e4e1a64cdc01).
 ## Introduction
-OpenShift Fluentd configuration is exposed in logging-fluentd ConfigMap in openshift-logging project.The ConfigMap is populated with data from files mounted from the Fluentd pods image directory /etc/fluent/configs.d/user/. The main Fluentd configuration file in a Fluentd pod /etc/fluent/fluent.conf  is a symbolic link to /etc/fluent/configs.d/user/fluentd.conf. The idea is to add new Fluentd configuration file(s) as new ConfigMap entries and modify slightly the main fluentd.conf to apply the new pipeline. Furthermore to handle multiline logs, an additional Fluentd plugin is needed which is not part of the Fluent image, so the idea is to create a new ConfigMap for the plugins including not only the existing ones but also the additional plugin needed.
+OpenShift Fluentd configuration is exposed in logging-fluentd ConfigMap in openshift-logging project.The ConfigMap is populated with data from files mounted from the Fluentd pods image directory /etc/fluent/configs.d/user/. The main Fluentd configuration file in a Fluentd pod /etc/fluent/fluent.conf  is a symbolic link to /etc/fluent/configs.d/user/fluentd.conf. The idea is to add new Fluentd configuration file(s) as new ConfigMap entries and modify slightly the main fluentd.conf to apply the new pipeline. Furthermore to handle multiline logs, an additional Fluentd plugin is needed which is not part of the Fluent image, so the idea is to create a new ConfigMap and the associated Volume for the plugins including not only the existing ones but also the additional plugin needed.
 
 ## Spring Boot logs
-```
 Spring Boot logs are Logback formatted as the following samples:
+```
 service1.log:2016-02-26 11:15:47.561  INFO [service1,2485ec27856c56f4,2485ec27856c56f4,true] 68058 --- [nio-8081-exec-1] i.s.c.sleuth.docs.service1.Application   : Hello from service1. Calling service2
 service2.log:2016-02-26 11:15:47.710  INFO [service2,2485ec27856c56f4,9aa10ee6fbde75fa,true] 68059 --- [nio-8082-exec-1] i.s.c.sleuth.docs.service2.Application   : Hello from service2. Calling service3 and then service4
 service3.log:2016-02-26 11:15:47.895  INFO [service3,2485ec27856c56f4,1210be13194bfe5,true] 68060 --- [nio-8083-exec-1] i.s.c.sleuth.docs.service3.Application   : Hello from service3
@@ -15,21 +15,27 @@ service4.log:2016-02-26 11:15:48.134  INFO [service4,2485ec27856c56f4,1b1845262f
 service2.log:2016-02-26 11:15:48.156  INFO [service2,2485ec27856c56f4,9aa10ee6fbde75fa,true] 68059 --- [nio-8082-exec-1] i.s.c.sleuth.docs.service2.Application   : Got response from service4 [Hello from service4]
 service1.log:2016-02-26 11:15:48.182  INFO [service1,2485ec27856c56f4,2485ec27856c56f4,true] 68058 --- [nio-8081-exec-1] i.s.c.sleuth.docs.service1.Application   : Got response from service2 [Hello from service2, response from service3 [Hello from service3] and from service4 [Hello from service4]]
 ```
-1.	Fields to be parsed are: thread, span, trace, service, severity, class
-2.	Fluentd configuration should handle multi-line log entries (i.e. exceptions stack trace)
-3.	Log Events should be sent to the same elastic search index
+1. Fields to be parsed are: thread, span, trace, service, severity, class
+2. Fluentd configuration should handle multi-line log entries (i.e. exceptions stack trace)
+3. Log Events should be sent to the same elastic search index
+4. The configuration should be installed from CLI and could be easily uninstalled
 
-A [custom Perl application](https://github.com/SLionB/noise) has been created to generate sample logs of this type.
+A [custom Perl application](https://github.com/SLionB/noise) has been created to be easily containerized and generate sample logs of this type.
 
 
 ## How it works
-Default OCP Fluentd pipeline reads container logs from journald source using Fluentd INGRESS labeled configuration and forwards them to OUTPUT labeled configuration which is the Elasticsearch backend like that: source->INGRESS->OUTPUT
-To support multiline handling and custom field parsing, the main pipeline in fluent.conf has to be modified as follows:
-source->INGRESS->MULTILINE->PARSER->OUTPUT.
+Default OCP Fluentd pipeline reads container logs from journald source using Fluentd INGRESS labeled configuration and forwards them to OUTPUT labeled configuration which is the Elasticsearch backend like that: 
+```
+source->INGRESS->OUTPUT
+```
+To support multiline handling and custom field parsing, the main pipeline in **fluent.conf** has to be modified as follows:
+```
+source->INGRESS->MULTILINE->PARSER->OUTPUT
+```
 
-1. The  new configuration file filter-post-springboot.conf in the INGRESS block  replaces the default filter-post-*.conf and forwards the logs to MULTILINE block instead of the OUTPUT block. Furtnermore it creates a docker_container_id field as the default nested one docker.container_id cannot be used by concat Fluentd filter.
-2. The file out-multiline-springboot.conf in the MULTILINE block uses the concat filter to concatenate multiline logs based on a custom regular expression (you can use your own) in the contents of the message field grouped by the calculated docker_container_id field. Concatenated logs are forwarded to PARSER block for field parsing.
-3. The file out-parser-springboot.conf in the PARSER block users a custom regular expression (you can use your own) in the parser filter to parse custom application fields and forwards them to OUTPUT block.
+1. The new configuration file **filter-post-springboot.conf** in the INGRESS block  replaces the default filter-post-*.conf and forwards the logs to MULTILINE block instead of the OUTPUT block. Furtnermore it creates a docker_container_id field as the default nested one docker.container_id cannot be used by concat Fluentd filter.
+2. The new configuration file **out-multiline-springboot.conf** in the MULTILINE block uses the concat filter to concatenate multiline logs based on a custom regular expression (you can use your own) in the contents of the message field grouped by the calculated docker_container_id field. Concatenated logs are forwarded to PARSER block for field parsing.
+3. The new configuration file **out-parser-springboot.conf** in the PARSER block users a custom regular expression (you can use your own) in the parser filter to parse custom application fields and forwards them to OUTPUT block.
 
 ## Installing Custom Multiline Parsing
 1. On an OpenShift master node login to OpenShift cluster using the CLI:
