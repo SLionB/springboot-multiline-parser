@@ -85,8 +85,9 @@ $ rm /work/fluentd/configs.d/user/README.md
 ```
 #This line should have beeen commented out
 #@include configs.d/openshift/filter-post-*.conf
-#The following 2 new lines should have been added just below the previous one
+#The following line is needed just below the previous for OCP 3.9 and 3.10.Don't use it for 3.6 and 3.7
 @include configs.d/openshift/filter-post-genid.conf
+#The following line should be add to the end of INGRESS block
 @include configs.d/user/filter-post-springboot.conf
 ```
 10. Create a new ConfigMap for the Fluentd plugins:
@@ -123,7 +124,7 @@ to enable custom multiline parsing:
 ```
 #This line should be commented out
 #@include configs.d/openshift/filter-post-*.conf
-#The following 2 new lines should be added just below the previous one
+#Depending on OCP version the last line(all version) or both (3.9 and 3.10 only) new lines should be added just below the previous one
 @include configs.d/openshift/filter-post-genid.conf
 @include configs.d/user/filter-post-springboot.conf
 ```
