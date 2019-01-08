@@ -21,7 +21,7 @@ service1.log:2016-02-26 11:15:48.182  INFO [service1,2485ec27856c56f4,2485ec2785
 3. Log Events should be sent to the same elastic search index
 4. The configuration should be installed from CLI and could be easily uninstalled
 
-A [custom Perl application](https://github.com/SLionB/noise) has been created to be easily containerized and generate sample logs of this type.
+A [custom Perl application](https://github.com/SLionB/logbackgen) has been created to be easily containerized and generate sample logs of this type.
 
 
 ## How it works
